@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AlertCircle, CheckCircle, ExternalLink, Copy } from 'lucide-react';
+import { DebugInfo } from './DebugInfo';
 
 interface ConfigGuideProps {
   missingVars: string[];
@@ -211,6 +212,9 @@ export function ConfigGuide({ missingVars, onRetry }: ConfigGuideProps) {
             前往配置 <ExternalLink className="w-4 h-4 ml-2" />
           </a>
         </div>
+
+        {/* 调试信息 */}
+        <DebugInfo />
       </div>
     </div>
   );
