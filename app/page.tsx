@@ -1,6 +1,6 @@
 'use client';
 
-import { FileManager } from '@/components/FileManager';
+import { DirectLinkManager } from '@/components/DirectLinkManager';
 import { ConfigGuide } from '@/components/ConfigGuide';
 import { validateCloudinaryConfig } from '@/lib/cloudinary';
 import { Cloud } from 'lucide-react';
@@ -38,6 +38,6 @@ export default function HomePage() {
     );
   }
 
-  // 正常渲染文件管理器
-  return <FileManager />;
+  // 正常渲染直接链接管理器  
+  return <DirectLinkManager />;
 }

@@ -1,5 +1,16 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { 
+  FileIcon, 
+  Image, 
+  FileText, 
+  FileSpreadsheet, 
+  FileVideo, 
+  FileAudio,
+  Archive,
+  Code,
+  Presentation
+} from 'lucide-react';
 
 // 合并CSS类名的工具函数
 export function cn(...inputs: ClassValue[]) {
@@ -88,6 +99,24 @@ export function getFileIconType(fileName: string): string {
   if (codeTypes.includes(extension)) return 'code';
   
   return 'file';
+}
+
+// 根据文件类型获取对应的Lucide图标组件
+export function getFileIcon(fileType: string) {
+  // 根据MIME类型判断
+  if (fileType.startsWith('image/')) return Image;
+  if (fileType.startsWith('video/')) return FileVideo;
+  if (fileType.startsWith('audio/')) return FileAudio;
+  
+  // 根据具体类型判断
+  if (fileType.includes('pdf')) return FileText;
+  if (fileType.includes('document') || fileType.includes('word')) return FileText;
+  if (fileType.includes('sheet') || fileType.includes('excel')) return FileSpreadsheet;
+  if (fileType.includes('presentation') || fileType.includes('powerpoint')) return Presentation;
+  if (fileType.includes('zip') || fileType.includes('archive')) return Archive;
+  if (fileType.includes('javascript') || fileType.includes('json') || fileType.includes('xml')) return Code;
+  
+  return FileIcon; // 默认文件图标
 }
 
 // 截断文件名 - 如果文件名过长则进行截断
