@@ -10,85 +10,16 @@ const GLOBAL_FILE_TAG = 'upload-center-files';
 const INDEX_TAG_PREFIX = 'index-';
 
 /**
- * 从Cloudinary获取所有文件列表
+ * 从云端获取文件列表（简化版本）
+ * 由于Cloudinary List API需要签名认证，在静态部署中不可用
+ * 改为使用本地存储作为主要方式，云端仅用于文件存储
  * @returns Promise<文件信息数组>
  */
 export async function getFilesFromCloud(): Promise<FileInfo[]> {
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  
-  if (!cloudName) {
-    console.error('Cloudinary配置缺失');
-    return [];
-  }
-
-  try {
-    // 使用Cloudinary的搜索API获取带有指定标签的所有文件
-    const searchUrl = `https://res.cloudinary.com/${cloudName}/image/list/${GLOBAL_FILE_TAG}.json`;
-    
-    let allFiles: FileInfo[] = [];
-    
-    // 同时搜索三种资源类型
-    const resourceTypes = ['image', 'video', 'raw'];
-    
-    for (const resourceType of resourceTypes) {
-      try {
-        const typeSearchUrl = `https://res.cloudinary.com/${cloudName}/${resourceType}/list/${GLOBAL_FILE_TAG}.json`;
-        const response = await fetch(typeSearchUrl);
-        
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.resources && Array.isArray(data.resources)) {
-            // 转换Cloudinary响应为FileInfo格式
-            const files: FileInfo[] = data.resources.map((resource: any) => {
-              // 尝试从标签中解析文件信息
-              const indexTag = resource.tags?.find((tag: string) => tag.startsWith(INDEX_TAG_PREFIX));
-              let fileInfo: Partial<FileInfo> = {};
-              
-              if (indexTag) {
-                try {
-                  const encodedInfo = indexTag.replace(INDEX_TAG_PREFIX, '');
-                  const decodedInfo = decodeURIComponent(encodedInfo);
-                  fileInfo = JSON.parse(decodedInfo);
-                } catch (error) {
-                  console.warn('解析文件信息标签失败:', error);
-                }
-              }
-              
-              // 生成文件信息，优先使用标签中的信息
-              return {
-                id: fileInfo.id || resource.public_id,
-                fileName: fileInfo.fileName || resource.public_id.split('/').pop() || 'unknown',
-                uploadTime: fileInfo.uploadTime || resource.created_at || new Date().toISOString(),
-                expiresAt: fileInfo.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                fileSize: fileInfo.fileSize || resource.bytes || 0,
-                cloudinaryUrl: resource.secure_url || resource.url,
-                fileType: fileInfo.fileType || getFileTypeFromFormat(resource.format, resourceType),
-                publicId: resource.public_id,
-              } as FileInfo;
-            });
-            
-            allFiles.push(...files);
-          }
-        }
-      } catch (error) {
-        console.warn(`搜索${resourceType}类型文件失败:`, error);
-      }
-    }
-    
-    // 去重并按上传时间排序
-    const uniqueFiles = Array.from(
-      new Map(allFiles.map(file => [file.id, file])).values()
-    );
-    
-    return uniqueFiles.sort((a, b) => 
-      new Date(b.uploadTime).getTime() - new Date(a.uploadTime).getTime()
-    );
-    
-  } catch (error) {
-    console.error('从云端获取文件列表失败:', error);
-    return [];
-  }
+  // 静态部署环境中无法安全地访问Cloudinary List API
+  // 返回空数组，让系统使用本地存储
+  console.log('[云端模式] Cloudinary List API在静态部署中不可用，使用本地存储');
+  return [];
 }
 
 /**

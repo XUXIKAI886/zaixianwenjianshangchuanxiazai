@@ -6,7 +6,8 @@ import { FileList } from './FileList';
 import { FileSearchSort } from './FileSearchSort';
 import { FileInfo, FilterOptions } from '@/lib/types';
 import { getStoredFiles, deleteFileFromStorage, batchDeleteFilesFromStorage, saveFileToStorage } from '@/lib/storage';
-import { getHybridFileList, checkCloudConnection } from '@/lib/cloud-storage';
+import { checkCloudConnection } from '@/lib/cloud-storage';
+import { generateShareLink, checkForSharedFiles, clearShareParams, getShareableStats } from '@/lib/shared-storage';
 import { deleteFileFromCloudinary, batchDeleteFilesFromCloudinary } from '@/lib/cloudinary';
 import { useSimpleToast } from '@/components/ui/simple-toast';
 
@@ -23,7 +24,7 @@ export function FileManager() {
   const [cloudStatus, setCloudStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
   const { showToast } = useSimpleToast();
 
-  // 从云端和本地加载文件列表（混合模式）
+  // 加载文件列表（本地存储 + 分享文件检查）
   const loadFiles = useCallback(async () => {
     try {
       setLoading(true);
@@ -32,40 +33,51 @@ export function FileManager() {
       const isConnected = await checkCloudConnection();
       setCloudStatus(isConnected ? 'connected' : 'offline');
       
-      // 获取混合文件列表（云端优先，本地备用）
-      const fileList = await getHybridFileList();
+      // 首先获取本地文件
+      const localFiles = getStoredFiles();
       
-      // 同步到本地存储（确保本地备份）
-      if (isConnected && fileList.length > 0) {
-        for (const file of fileList) {
+      // 检查是否有通过URL分享的文件
+      const sharedFiles = checkForSharedFiles();
+      
+      if (sharedFiles && sharedFiles.length > 0) {
+        // 如果有分享文件，合并到本地存储
+        const existingIds = new Set(localFiles.map(f => f.id));
+        const newSharedFiles = sharedFiles.filter(file => !existingIds.has(file.id));
+        
+        // 保存新的分享文件到本地存储
+        for (const file of newSharedFiles) {
           saveFileToStorage(file);
         }
         
-        if (fileList.length > 0) {
+        // 合并所有文件
+        const allFiles = [...localFiles, ...newSharedFiles];
+        setFiles(allFiles);
+        
+        // 清除URL参数
+        clearShareParams();
+        
+        // 显示导入提示
+        if (newSharedFiles.length > 0) {
           showToast({
             type: "success",
-            title: "文件同步完成",
-            description: `已从云端同步 ${fileList.length} 个文件`,
+            title: "文件导入成功",
+            description: `已导入 ${newSharedFiles.length} 个分享文件`,
           });
         }
+      } else {
+        // 没有分享文件，只使用本地文件
+        setFiles(localFiles);
       }
       
-      setFiles(fileList);
       setLoading(false);
     } catch (error) {
       console.error('加载文件列表失败:', error);
       
-      // 出错时回退到本地存储
+      // 出错时仅使用本地存储
       try {
         const localFiles = getStoredFiles();
         setFiles(localFiles);
         setCloudStatus('offline');
-        
-        showToast({
-          type: "warning",
-          title: "使用本地缓存",
-          description: "云端连接失败，显示本地缓存文件",
-        });
       } catch (localError) {
         console.error('本地存储也无法访问:', localError);
         setFiles([]);
@@ -272,6 +284,52 @@ export function FileManager() {
     await loadFiles();
   };
 
+  // 生成分享链接
+  const handleGenerateShareLink = () => {
+    try {
+      const validFiles = files.filter(file => {
+        const now = new Date().getTime();
+        const expiryTime = new Date(file.expiresAt || '').getTime();
+        return expiryTime > now; // 只分享未过期的文件
+      });
+
+      if (validFiles.length === 0) {
+        showToast({
+          type: "warning",
+          title: "没有可分享的文件",
+          description: "请先上传一些文件",
+        });
+        return;
+      }
+
+      const shareLink = generateShareLink(validFiles);
+      
+      // 复制到剪贴板
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareLink).then(() => {
+          showToast({
+            type: "success",
+            title: "分享链接已复制",
+            description: `已复制包含 ${validFiles.length} 个文件的分享链接`,
+          });
+        }).catch(() => {
+          // 失败时显示链接
+          window.prompt('分享链接（请手动复制）:', shareLink);
+        });
+      } else {
+        // 不支持剪贴板API时显示链接
+        window.prompt('分享链接（请手动复制）:', shareLink);
+      }
+    } catch (error) {
+      console.error('生成分享链接失败:', error);
+      showToast({
+        type: "error",
+        title: "生成分享链接失败",
+        description: "请重试",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* 页面标题 */}
@@ -330,13 +388,23 @@ export function FileManager() {
             <h2 className="text-xl font-semibold text-gray-900">
               文件列表
             </h2>
-            <button
-              onClick={handleRefresh}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-              disabled={loading}
-            >
-              {loading ? '加载中...' : '刷新'}
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleGenerateShareLink}
+                className="px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50"
+                disabled={files.length === 0}
+                title="生成多设备分享链接"
+              >
+                生成分享链接
+              </button>
+              <button
+                onClick={handleRefresh}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                disabled={loading}
+              >
+                {loading ? '加载中...' : '刷新'}
+              </button>
+            </div>
           </div>
           
           {/* 搜索和排序组件 */}

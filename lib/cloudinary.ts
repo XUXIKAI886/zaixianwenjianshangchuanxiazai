@@ -26,13 +26,26 @@ export async function uploadFileToCloudinary(
   // 创建FormData
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('upload_preset', 'file-upload-preset'); // 需要在Cloudinary控制台创建
+  formData.append('upload_preset', 'ml_default'); // 使用默认的无签名预设
   formData.append('resource_type', 'auto'); // 自动检测资源类型
   
-  // 如果提供了文件信息，添加云端索引标签
+  // 如果提供了文件信息，添加云端索引标签（简化版本）
   if (fileInfo) {
-    const tags = generateCloudinaryTags(fileInfo);
-    formData.append('tags', tags.join(','));
+    // 添加基本标签用于识别
+    const basicTags = ['upload-center-files', `file-${fileInfo.id}`];
+    formData.append('tags', basicTags.join(','));
+    
+    // 添加上下文信息
+    const context = {
+      fileName: fileInfo.fileName,
+      uploadTime: fileInfo.uploadTime,
+      originalSize: fileInfo.fileSize.toString(),
+    };
+    
+    // Cloudinary上下文信息
+    Object.entries(context).forEach(([key, value]) => {
+      formData.append(`context[${key}]`, value);
+    });
   }
 
   try {
