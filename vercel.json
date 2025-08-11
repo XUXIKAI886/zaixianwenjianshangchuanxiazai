@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "name": "upload-center",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME": "@cloudinary_cloud_name",
+    "NEXT_PUBLIC_CLOUDINARY_API_KEY": "@cloudinary_api_key"
+  },
+  "functions": {
+    "app/page.tsx": {
+      "maxDuration": 10
+    }
+  }
+}

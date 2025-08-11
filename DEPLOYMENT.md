@@ -1,4 +1,25 @@
-# GitHub Pages 部署指南
+# 部署指南
+
+本项目支持多种部署方式：**Vercel部署**（推荐）和GitHub Pages部署。
+
+## 🚀 方式一：Vercel部署（推荐）
+
+### 优势
+- ✅ 更稳定的环境变量支持  
+- ✅ 更快的构建和部署
+- ✅ 自动HTTPS和全球CDN
+- ✅ 更好的错误提示和调试
+
+### 快速部署
+点击下面按钮一键部署：
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FXUXIKAI886%2Fzaixianwenjianshangchuanxiazai&env=NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,NEXT_PUBLIC_CLOUDINARY_API_KEY&envDescription=Cloudinary%E9%85%8D%E7%BD%AE%E4%BF%A1%E6%81%AF&envLink=https%3A%2F%2Fcloudinary.com%2Fconsole)
+
+详细说明请参考：[Vercel部署指南](./VERCEL_DEPLOYMENT.md)
+
+---
+
+## 📄 方式二：GitHub Pages部署
 
 ## 🚀 自动部署设置
 
