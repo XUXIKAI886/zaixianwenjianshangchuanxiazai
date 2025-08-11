@@ -8,6 +8,7 @@ import { FileInfo, FilterOptions } from '@/lib/types';
 import { getStoredFiles, deleteFileFromStorage, batchDeleteFilesFromStorage, saveFileToStorage } from '@/lib/storage';
 import { checkCloudConnection } from '@/lib/cloud-storage';
 import { generateShareLink, checkForSharedFiles, clearShareParams, getShareableStats } from '@/lib/shared-storage';
+import { syncFiles, startAutoSync, uploadFileIndex } from '@/lib/cloud-sync';
 import { deleteFileFromCloudinary, batchDeleteFilesFromCloudinary } from '@/lib/cloudinary';
 import { useSimpleToast } from '@/components/ui/simple-toast';
 
@@ -24,7 +25,7 @@ export function FileManager() {
   const [cloudStatus, setCloudStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
   const { showToast } = useSimpleToast();
 
-  // 加载文件列表（本地存储 + 分享文件检查）
+  // 加载文件列表（集成云端自动同步）
   const loadFiles = useCallback(async () => {
     try {
       setLoading(true);
@@ -38,6 +39,7 @@ export function FileManager() {
       
       // 检查是否有通过URL分享的文件
       const sharedFiles = checkForSharedFiles();
+      let currentFiles = localFiles;
       
       if (sharedFiles && sharedFiles.length > 0) {
         // 如果有分享文件，合并到本地存储
@@ -50,8 +52,7 @@ export function FileManager() {
         }
         
         // 合并所有文件
-        const allFiles = [...localFiles, ...newSharedFiles];
-        setFiles(allFiles);
+        currentFiles = [...localFiles, ...newSharedFiles];
         
         // 清除URL参数
         clearShareParams();
@@ -64,11 +65,38 @@ export function FileManager() {
             description: `已导入 ${newSharedFiles.length} 个分享文件`,
           });
         }
-      } else {
-        // 没有分享文件，只使用本地文件
-        setFiles(localFiles);
       }
       
+      // 执行云端同步
+      if (isConnected) {
+        try {
+          const syncResult = await syncFiles(currentFiles);
+          
+          if (syncResult.hasNewFiles) {
+            // 保存同步后的文件到本地存储
+            for (const file of syncResult.files) {
+              saveFileToStorage(file);
+            }
+            
+            currentFiles = syncResult.files;
+            
+            showToast({
+              type: "success",
+              title: "多设备同步完成",
+              description: `发现 ${syncResult.syncedCount} 个新文件`,
+            });
+          }
+        } catch (syncError) {
+          console.warn('云端同步失败，使用本地文件:', syncError);
+          showToast({
+            type: "warning",
+            title: "同步异常",
+            description: "云端同步失败，显示本地文件",
+          });
+        }
+      }
+      
+      setFiles(currentFiles);
       setLoading(false);
     } catch (error) {
       console.error('加载文件列表失败:', error);
@@ -123,7 +151,40 @@ export function FileManager() {
       loadFiles().catch(console.error);
     }, 60000); // 60秒
     
-    return () => clearInterval(intervalId);
+    // 启动自动同步
+    let stopAutoSync: (() => void) | null = null;
+    
+    const setupAutoSync = async () => {
+      const isConnected = await checkCloudConnection();
+      if (isConnected) {
+        const currentFiles = getStoredFiles();
+        stopAutoSync = startAutoSync(currentFiles, (syncedFiles, newCount) => {
+          setFiles(syncedFiles);
+          
+          // 保存同步的文件到本地存储
+          for (const file of syncedFiles) {
+            saveFileToStorage(file);
+          }
+          
+          if (newCount > 0) {
+            showToast({
+              type: "success",
+              title: "发现新文件",
+              description: `从其他设备同步了 ${newCount} 个新文件`,
+            });
+          }
+        });
+      }
+    };
+    
+    setupAutoSync();
+    
+    return () => {
+      clearInterval(intervalId);
+      if (stopAutoSync) {
+        stopAutoSync();
+      }
+    };
   }, [showToast, loadFiles]);
 
   // 应用筛选和排序
@@ -176,9 +237,17 @@ export function FileManager() {
   }, [files, filters]);
 
   // 处理文件上传完成
-  const handleUploadComplete = (fileInfo: FileInfo) => {
+  const handleUploadComplete = async (fileInfo: FileInfo) => {
     setFiles(prevFiles => {
       const newFiles = [fileInfo, ...prevFiles];
+      
+      // 异步上传文件索引到云端（不阻塞UI）
+      uploadFileIndex(newFiles).then(() => {
+        console.log('[多设备同步] 文件上传后已同步到云端');
+      }).catch(error => {
+        console.warn('[多设备同步] 同步到云端失败:', error);
+      });
+      
       return newFiles;
     });
   };
