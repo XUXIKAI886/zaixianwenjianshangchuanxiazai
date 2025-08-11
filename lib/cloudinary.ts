@@ -80,32 +80,18 @@ export async function uploadFileToCloudinary(
 }
 
 /**
- * 从Cloudinary删除文件
+ * 从Cloudinary删除文件（GitHub Pages静态部署版本）
+ * 注意：静态部署无法安全地删除Cloudinary文件，此函数仅作占位符
  * @param publicId Cloudinary公共ID
  * @param fileType 文件类型，用于确定资源类型
  * @returns Promise<删除结果>
  */
 export async function deleteFileFromCloudinary(publicId: string, fileType?: string): Promise<void> {
-  try {
-    const response = await fetch('/api/delete-file', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ publicId, fileType }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || '删除文件失败');
-    }
-  } catch (error) {
-    console.error('删除文件失败:', error);
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error('删除文件失败，请重试');
-  }
+  console.log(`[静态部署] 无法从Cloudinary删除文件: ${publicId}`);
+  console.log('文件仍保留在Cloudinary中，只从本地存储移除');
+  // 在静态部署中，我们无法安全地删除Cloudinary文件
+  // 文件将继续保留在云端，但会从本地列表中移除
+  return Promise.resolve();
 }
 
 /**

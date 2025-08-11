@@ -5,8 +5,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/file-upload-download/' : '',
-  basePath: process.env.NODE_ENV === 'production' ? '/file-upload-download' : '',
+  assetPrefix: process.env.NODE_ENV === 'production' ? '/zaixianwenjianshangchuanxiazai/' : '',
+  basePath: process.env.NODE_ENV === 'production' ? '/zaixianwenjianshangchuanxiazai' : '',
 };
 
 module.exports = nextConfig;
