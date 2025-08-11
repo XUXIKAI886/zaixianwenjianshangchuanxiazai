@@ -1,10 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { AlertCircle, CheckCircle, X } from 'lucide-react';
+import { AlertCircle, CheckCircle, X, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 export interface SimpleToast {
   id: string;
@@ -57,6 +57,7 @@ export function SimpleToastProvider({ children }: { children: React.ReactNode })
                 "bg-green-50 border-green-200 text-green-800": toast.type === 'success',
                 "bg-red-50 border-red-200 text-red-800": toast.type === 'error',
                 "bg-blue-50 border-blue-200 text-blue-800": toast.type === 'info',
+                "bg-yellow-50 border-yellow-200 text-yellow-800": toast.type === 'warning',
               }
             )}
           >
@@ -64,6 +65,7 @@ export function SimpleToastProvider({ children }: { children: React.ReactNode })
               {toast.type === 'success' && <CheckCircle className="h-5 w-5 text-green-600" />}
               {toast.type === 'error' && <AlertCircle className="h-5 w-5 text-red-600" />}
               {toast.type === 'info' && <AlertCircle className="h-5 w-5 text-blue-600" />}
+              {toast.type === 'warning' && <AlertTriangle className="h-5 w-5 text-yellow-600" />}
             </div>
             
             <div className="flex-1 min-w-0">

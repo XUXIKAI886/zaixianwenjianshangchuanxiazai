@@ -1,13 +1,16 @@
-import { CloudinaryUploadResponse } from './types';
+import { CloudinaryUploadResponse, FileInfo } from './types';
+import { generateCloudinaryTags } from './cloud-storage';
 
 /**
- * 上传文件到Cloudinary
+ * 上传文件到Cloudinary（支持云端文件索引）
  * @param file 要上传的文件
+ * @param fileInfo 文件信息（用于生成云端标签）
  * @param onProgress 上传进度回调函数
  * @returns Promise<上传结果>
  */
 export async function uploadFileToCloudinary(
   file: File, 
+  fileInfo?: FileInfo,
   onProgress?: (progress: number) => void
 ): Promise<{
   url: string;
@@ -25,6 +28,12 @@ export async function uploadFileToCloudinary(
   formData.append('file', file);
   formData.append('upload_preset', 'file-upload-preset'); // 需要在Cloudinary控制台创建
   formData.append('resource_type', 'auto'); // 自动检测资源类型
+  
+  // 如果提供了文件信息，添加云端索引标签
+  if (fileInfo) {
+    const tags = generateCloudinaryTags(fileInfo);
+    formData.append('tags', tags.join(','));
+  }
 
   try {
     return new Promise((resolve, reject) => {

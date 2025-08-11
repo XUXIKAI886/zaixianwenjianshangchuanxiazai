@@ -59,8 +59,23 @@ export function FileUploader({
       setUploadingFiles(prev => [...prev, progressInfo]);
 
       try {
-        // 上传到Cloudinary
-        const uploadResult = await uploadFileToCloudinary(file, (progress) => {
+        // 先创建文件信息对象（用于生成云端标签）
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24小时后过期
+        
+        const fileInfo: FileInfo = {
+          id: fileId,
+          fileName: file.name,
+          uploadTime: now.toISOString(),
+          expiresAt: expiresAt.toISOString(),
+          fileSize: file.size,
+          cloudinaryUrl: '', // 稍后填充
+          fileType: file.type,
+          publicId: '', // 稍后填充
+        };
+
+        // 上传到Cloudinary（包含文件信息用于生成云端标签）
+        const uploadResult = await uploadFileToCloudinary(file, fileInfo, (progress) => {
           // 更新上传进度
           setUploadingFiles(prev => 
             prev.map(item => 
@@ -75,20 +90,9 @@ export function FileUploader({
           }
         });
 
-        // 创建文件信息对象
-        const now = new Date();
-        const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24小时后过期
-        
-        const fileInfo: FileInfo = {
-          id: fileId,
-          fileName: file.name,
-          uploadTime: now.toISOString(),
-          expiresAt: expiresAt.toISOString(),
-          fileSize: file.size,
-          cloudinaryUrl: uploadResult.url,
-          fileType: file.type,
-          publicId: uploadResult.publicId,
-        };
+        // 完善文件信息
+        fileInfo.cloudinaryUrl = uploadResult.url;
+        fileInfo.publicId = uploadResult.publicId;
 
         // 保存到本地存储
         saveFileToStorage(fileInfo);

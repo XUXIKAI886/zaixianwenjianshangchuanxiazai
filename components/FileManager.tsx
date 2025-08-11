@@ -5,7 +5,8 @@ import { FileUploader } from './FileUploader';
 import { FileList } from './FileList';
 import { FileSearchSort } from './FileSearchSort';
 import { FileInfo, FilterOptions } from '@/lib/types';
-import { getStoredFiles, deleteFileFromStorage, batchDeleteFilesFromStorage } from '@/lib/storage';
+import { getStoredFiles, deleteFileFromStorage, batchDeleteFilesFromStorage, saveFileToStorage } from '@/lib/storage';
+import { getHybridFileList, checkCloudConnection } from '@/lib/cloud-storage';
 import { deleteFileFromCloudinary, batchDeleteFilesFromCloudinary } from '@/lib/cloudinary';
 import { useSimpleToast } from '@/components/ui/simple-toast';
 
@@ -19,19 +20,60 @@ export function FileManager() {
   });
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState<'checking' | 'connected' | 'offline'>('checking');
   const { showToast } = useSimpleToast();
 
-  // 从本地存储加载文件列表
-  const loadFiles = useCallback(() => {
+  // 从云端和本地加载文件列表（混合模式）
+  const loadFiles = useCallback(async () => {
     try {
-      const storedFiles = getStoredFiles();
-      setFiles(storedFiles);
+      setLoading(true);
+      
+      // 检查云端连接状态
+      const isConnected = await checkCloudConnection();
+      setCloudStatus(isConnected ? 'connected' : 'offline');
+      
+      // 获取混合文件列表（云端优先，本地备用）
+      const fileList = await getHybridFileList();
+      
+      // 同步到本地存储（确保本地备份）
+      if (isConnected && fileList.length > 0) {
+        for (const file of fileList) {
+          saveFileToStorage(file);
+        }
+        
+        if (fileList.length > 0) {
+          showToast({
+            type: "success",
+            title: "文件同步完成",
+            description: `已从云端同步 ${fileList.length} 个文件`,
+          });
+        }
+      }
+      
+      setFiles(fileList);
       setLoading(false);
     } catch (error) {
       console.error('加载文件列表失败:', error);
+      
+      // 出错时回退到本地存储
+      try {
+        const localFiles = getStoredFiles();
+        setFiles(localFiles);
+        setCloudStatus('offline');
+        
+        showToast({
+          type: "warning",
+          title: "使用本地缓存",
+          description: "云端连接失败，显示本地缓存文件",
+        });
+      } catch (localError) {
+        console.error('本地存储也无法访问:', localError);
+        setFiles([]);
+      }
+      
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   // 初始化时加载文件
   useEffect(() => {
@@ -65,11 +107,12 @@ export function FileManager() {
         }
       }
       
-      loadFiles(); // 重新加载文件列表，会自动清理过期文件
+      // 重新加载文件列表，会自动清理过期文件
+      loadFiles().catch(console.error);
     }, 60000); // 60秒
     
     return () => clearInterval(intervalId);
-  }, [showToast]);
+  }, [showToast, loadFiles]);
 
   // 应用筛选和排序
   const applyFilters = useCallback((fileList: FileInfo[], currentFilters: FilterOptions) => {
@@ -224,21 +267,47 @@ export function FileManager() {
   };
 
   // 刷新文件列表
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setLoading(true);
-    loadFiles();
+    await loadFiles();
   };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* 页面标题 */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          呈尚策划 关键词描述文件上传下载中心
-        </h1>
-        <p className="text-gray-600">
-          支持拖拽上传文件，自动保存到云端，随时随地访问和分享
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              呈尚策划 关键词描述文件上传下载中心
+            </h1>
+            <p className="text-gray-600">
+              支持拖拽上传文件，自动保存到云端，随时随地访问和分享
+            </p>
+          </div>
+          
+          {/* 云端连接状态指示器 */}
+          <div className="flex items-center space-x-2 text-sm">
+            {cloudStatus === 'checking' && (
+              <div className="flex items-center text-yellow-600">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2 animate-pulse"></div>
+                检查连接...
+              </div>
+            )}
+            {cloudStatus === 'connected' && (
+              <div className="flex items-center text-green-600">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                云端已连接
+              </div>
+            )}
+            {cloudStatus === 'offline' && (
+              <div className="flex items-center text-gray-500">
+                <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                离线模式
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 文件上传区域 */}
