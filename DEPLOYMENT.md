@@ -21,8 +21,12 @@
 ### 3. 创建Cloudinary上传预设
 在Cloudinary控制台中：
 1. 进入Settings → Upload → Upload presets  
-2. 创建名为`file-upload-preset`的无签名预设
+2. 创建名为`upload-preset`的无签名预设
 3. 设置为`Unsigned`模式
+4. 确保启用`Use filename as public ID`选项（可选）
+5. 保存预设
+
+**重要提示**：预设名称必须完全匹配`upload-preset`
 
 ## 📋 部署限制说明
 

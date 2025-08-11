@@ -23,29 +23,16 @@ export async function uploadFileToCloudinary(
     throw new Error('Cloudinary配置缺失：请设置NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME环境变量');
   }
 
-  // 创建FormData
+  // 创建FormData - 使用无签名上传预设
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('upload_preset', 'ml_default'); // 使用默认的无签名预设
+  formData.append('upload_preset', 'upload-preset'); // 使用您需要创建的无签名预设
   formData.append('resource_type', 'auto'); // 自动检测资源类型
   
-  // 如果提供了文件信息，添加云端索引标签（简化版本）
+  // 如果提供了文件信息，添加简单标签
   if (fileInfo) {
-    // 添加基本标签用于识别
-    const basicTags = ['upload-center-files', `file-${fileInfo.id}`];
-    formData.append('tags', basicTags.join(','));
-    
-    // 添加上下文信息
-    const context = {
-      fileName: fileInfo.fileName,
-      uploadTime: fileInfo.uploadTime,
-      originalSize: fileInfo.fileSize.toString(),
-    };
-    
-    // Cloudinary上下文信息
-    Object.entries(context).forEach(([key, value]) => {
-      formData.append(`context[${key}]`, value);
-    });
+    const tags = ['upload-center', `file-${fileInfo.id.substring(0, 8)}`];
+    formData.append('tags', tags.join(','));
   }
 
   try {
